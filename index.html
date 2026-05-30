@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Online Metronome</title>
+  <style>
+    :root{--bg:#0f172a;--card:#111827;--card2:#1f2937;--text:#f8fafc;--muted:#cbd5e1;--accent:#38bdf8;--accent2:#f59e0b;--danger:#fb7185;--ok:#34d399}
+    *{box-sizing:border-box} body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:radial-gradient(circle at top left,rgba(56,189,248,.24),transparent 34rem),radial-gradient(circle at bottom right,rgba(245,158,11,.16),transparent 30rem),var(--bg);color:var(--text);display:grid;place-items:center;padding:18px}
+    .app{width:min(760px,100%);background:rgba(17,24,39,.92);border:1px solid rgba(255,255,255,.12);border-radius:28px;box-shadow:0 22px 70px rgba(0,0,0,.35);padding:24px;backdrop-filter:blur(10px)}
+    header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:20px} h1{font-size:clamp(2rem,7vw,3.2rem);line-height:.95;margin:0;letter-spacing:-.06em}.subtitle{margin:8px 0 0;color:var(--muted);line-height:1.45}.pill{border-radius:999px;padding:10px 14px;background:rgba(56,189,248,.12);color:var(--accent);border:1px solid rgba(56,189,248,.28);font-weight:800;white-space:nowrap}
+    .panel{background:linear-gradient(180deg,rgba(31,41,55,.95),rgba(17,24,39,.95));border:1px solid rgba(255,255,255,.10);border-radius:24px;padding:20px;margin-bottom:16px}.tempo{font-size:clamp(4.5rem,18vw,9rem);font-weight:900;line-height:.9;text-align:center;letter-spacing:-.08em}.bpm{text-align:center;color:var(--muted);font-weight:800;letter-spacing:.18em;margin-top:8px}.beat{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:20px}.dot{width:20px;height:20px;border-radius:50%;background:#334155;border:2px solid rgba(255,255,255,.14);transition:transform .08s,background .08s,box-shadow .08s}.dot.on{background:var(--accent);transform:scale(1.35);box-shadow:0 0 0 8px rgba(56,189,248,.13)}.dot.accent.on{background:var(--accent2);box-shadow:0 0 0 8px rgba(245,158,11,.15)}
+    .flash{height:12px;border-radius:99px;background:#334155;overflow:hidden;margin-top:18px}.flash div{height:100%;width:0;background:var(--accent2);transition:width .08s}.flash div.active{width:100%}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.full{grid-column:1/-1}.controls{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}.field{display:grid;gap:8px}.label{font-size:.86rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em} input[type=range]{width:100%;accent-color:var(--accent)} select,input[type=number]{width:100%;border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:12px 14px;background:#0b1220;color:var(--text);font-weight:800;font-size:1rem} button{border:0;border-radius:16px;padding:14px 16px;background:#334155;color:var(--text);font-weight:900;font-size:1rem;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}button:active{transform:translateY(1px)}.primary{background:linear-gradient(135deg,var(--accent),#0ea5e9);color:#04111d}.stop{background:linear-gradient(135deg,var(--danger),#e11d48)}.accent{background:linear-gradient(135deg,var(--accent2),#f97316);color:#1f1300}.ok{background:linear-gradient(135deg,var(--ok),#10b981);color:#04130d}.muted{color:var(--muted);font-size:.95rem;line-height:1.45}.notice{border:1px solid rgba(245,158,11,.35);background:rgba(245,158,11,.10);border-radius:18px;padding:12px 14px;color:#fde68a;margin-bottom:14px}.hidden{display:none!important}@media(max-width:620px){.app{padding:18px;border-radius:22px}.grid{grid-template-columns:1fr}.controls{grid-template-columns:repeat(2,1fr)}header{display:block}.pill{display:inline-block;margin-top:12px}.panel{padding:16px}.dot{width:18px;height:18px}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div><h1>Metronome</h1><p class="subtitle">iPhone/Safari-compatible browser metronome. Tap Start once to unlock phone audio.</p></div>
+      <div id="status" class="pill">Ready</div>
+    </header>
+
+    <div id="iosNotice" class="notice hidden"><b>iPhone note:</b> Tap <b>Start</b> directly, turn off Silent Mode, and raise the media volume. If sound is blocked, tap <b>Enable Sound</b> once.</div>
+
+    <section class="panel">
+      <div id="tempoText" class="tempo">120</div>
+      <div class="bpm">BPM</div>
+      <div id="beatDots" class="beat"></div>
+      <div class="flash"><div id="flashBar"></div></div>
+    </section>
+
+    <section class="panel grid">
+      <div class="field full"><div class="label">Tempo</div><input id="tempo" type="range" min="30" max="240" value="120" /></div>
+      <div class="controls full">
+        <button id="minus10">-10</button><button id="minus1">-1</button><button id="plus1">+1</button><button id="plus10">+10</button>
+      </div>
+      <div class="field"><div class="label">Beats per bar</div><select id="beats"><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>12</option></select></div>
+      <div class="field"><div class="label">Volume</div><input id="volume" type="range" min="0" max="100" value="90" /></div>
+      <div class="field"><div class="label">Sound</div><select id="sound"><option value="wood">Wood click</option><option value="beep" selected>Beep</option><option value="soft">Soft tick</option></select></div>
+      <div class="field"><div class="label">Tap tempo</div><button id="tap">Tap</button></div>
+    </section>
+
+    <section class="panel">
+      <div class="controls">
+        <button id="enable" class="ok">Enable Sound</button>
+        <button id="start" class="primary">Start</button>
+        <button id="stop" class="stop">Stop</button>
+        <button id="test" class="accent">Test Sound</button>
+      </div>
+      <p id="message" class="muted">On iPhone, Safari requires sound to be started by a direct finger tap. Use the Start or Enable Sound button before playing.</p>
+    </section>
+  </main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const tempo = $('tempo'), tempoText = $('tempoText'), beatsSel = $('beats'), volume = $('volume'), soundSel = $('sound');
+  const dots = $('beatDots'), status = $('status'), flashBar = $('flashBar'), msg = $('message'), iosNotice = $('iosNotice');
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS) iosNotice.classList.remove('hidden');
+
+  let audioCtx = null, master = null, unlocked = false, running = false, timer = null;
+  let beatIndex = 0, nextTime = 0, tapTimes = [];
+  const lookahead = 25;
+  const scheduleAhead = 0.12;
+
+  function setMessage(t){ msg.textContent = t; }
+  function clamp(v){ return Math.max(30, Math.min(240, Math.round(v))); }
+  function updateTempo(v){ tempo.value = clamp(v); tempoText.textContent = tempo.value; }
+
+  function drawDots(){
+    dots.innerHTML = '';
+    for(let i=0;i<Number(beatsSel.value);i++){
+      const d = document.createElement('div');
+      d.className = 'dot' + (i===0 ? ' accent' : '');
+      dots.appendChild(d);
+    }
+  }
+  function lightBeat(i){
+    [...dots.children].forEach((d,n)=>d.classList.toggle('on', n===i));
+    flashBar.classList.add('active');
+    setTimeout(()=>flashBar.classList.remove('active'),80);
+  }
+
+  async function unlockAudio(){
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+      master = audioCtx.createGain();
+      master.gain.value = Number(volume.value) / 100;
+      master.connect(audioCtx.destination);
+    }
+    if (audioCtx.state !== 'running') await audioCtx.resume();
+
+    // iOS unlock: play one very short silent buffer during the user gesture.
+    const buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(master);
+    source.start(0);
+
+    unlocked = true;
+    status.textContent = 'Sound enabled';
+    setMessage('Sound is enabled. Tap Start to begin. If you still hear nothing on iPhone, turn off Silent Mode and raise media volume.');
+  }
+
+  function makeNoiseBurst(time, isAccent){
+    const sr = audioCtx.sampleRate;
+    const dur = isAccent ? 0.045 : 0.035;
+    const buffer = audioCtx.createBuffer(1, Math.floor(sr * dur), sr);
+    const data = buffer.getChannelData(0);
+    for (let i=0;i<data.length;i++) {
+      const env = Math.exp(-i / (sr * (isAccent ? 0.010 : 0.007)));
+      data[i] = (Math.random() * 2 - 1) * env;
+    }
+    const src = audioCtx.createBufferSource();
+    src.buffer = buffer;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = isAccent ? 2200 : 1500;
+    filter.Q.value = soundSel.value === 'soft' ? 2.5 : 7;
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime((isAccent ? 1.0 : 0.72) * Number(volume.value)/100, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+    src.connect(filter); filter.connect(gain); gain.connect(master);
+    src.start(time); src.stop(time + dur + 0.02);
+  }
+
+  function makeBeep(time, isAccent){
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(isAccent ? 1046.5 : 784, time);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime((isAccent ? 0.65 : 0.42) * Number(volume.value)/100, time + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + (isAccent ? 0.085 : 0.055));
+    osc.connect(gain); gain.connect(master);
+    osc.start(time); osc.stop(time + 0.10);
+  }
+
+  function scheduleClick(time, i){
+    const isAccent = i === 0;
+    if (soundSel.value === 'beep') makeBeep(time, isAccent);
+    else makeNoiseBurst(time, isAccent);
+    const delay = Math.max(0, (time - audioCtx.currentTime) * 1000);
+    setTimeout(()=>lightBeat(i), delay);
+    if (navigator.vibrate && isIOS) setTimeout(()=>navigator.vibrate(isAccent ? 28 : 12), delay);
+  }
+
+  function scheduler(){
+    while(nextTime < audioCtx.currentTime + scheduleAhead){
+      scheduleClick(nextTime, beatIndex);
+      const secondsPerBeat = 60 / Number(tempo.value);
+      nextTime += secondsPerBeat;
+      beatIndex = (beatIndex + 1) % Number(beatsSel.value);
+    }
+  }
+
+  async function start(){
+    try {
+      await unlockAudio();
+      if (running) return;
+      running = true; beatIndex = 0; nextTime = audioCtx.currentTime + 0.06;
+      status.textContent = 'Playing';
+      setMessage('Playing. Keep this Safari tab open while using the metronome.');
+      scheduler();
+      timer = setInterval(scheduler, lookahead);
+    } catch (e) {
+      console.error(e);
+      setMessage('Safari blocked audio. Tap Enable Sound once, then tap Start again. Also check Silent Mode and volume.');
+      status.textContent = 'Audio blocked';
+    }
+  }
+  function stop(){
+    running = false;
+    if (timer) clearInterval(timer); timer = null;
+    status.textContent = unlocked ? 'Sound enabled' : 'Ready';
+    [...dots.children].forEach(d=>d.classList.remove('on'));
+    setMessage('Stopped.');
+  }
+  async function testSound(){
+    await unlockAudio();
+    scheduleClick(audioCtx.currentTime + 0.02, 0);
+    setMessage('Test sound played. If you see the flash but hear nothing on iPhone, check Silent Mode and media volume.');
+  }
+
+  tempo.addEventListener('input', e=>updateTempo(e.target.value));
+  volume.addEventListener('input', ()=>{ if(master) master.gain.value = Number(volume.value)/100; });
+  beatsSel.addEventListener('change', ()=>{ drawDots(); beatIndex = 0; });
+  $('minus10').onclick=()=>updateTempo(Number(tempo.value)-10); $('minus1').onclick=()=>updateTempo(Number(tempo.value)-1); $('plus1').onclick=()=>updateTempo(Number(tempo.value)+1); $('plus10').onclick=()=>updateTempo(Number(tempo.value)+10);
+  $('enable').addEventListener('click', unlockAudio);
+  $('start').addEventListener('click', start);
+  $('stop').addEventListener('click', stop);
+  $('test').addEventListener('click', testSound);
+  $('tap').addEventListener('click', () => {
+    const now = performance.now(); tapTimes.push(now); tapTimes = tapTimes.filter(t => now - t < 3000).slice(-6);
+    if (tapTimes.length >= 2) {
+      const intervals = tapTimes.slice(1).map((t,i)=>t-tapTimes[i]);
+      const avg = intervals.reduce((a,b)=>a+b,0)/intervals.length;
+      updateTempo(60000/avg);
+    }
+  });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && running) setMessage('Keep Safari open/visible for best timing on iPhone.'); });
+
+  drawDots(); updateTempo(tempo.value);
+})();
+</script>
+</body>
+</html>
