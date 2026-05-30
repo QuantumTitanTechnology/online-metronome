@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Online Metronome</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --accent: #38bdf8;
+      --accent-2: #f59e0b;
+      --danger: #fb7185;
+      --shadow: 0 20px 55px rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.25), transparent 34rem),
+        radial-gradient(circle at bottom right, rgba(245, 158, 11, 0.18), transparent 30rem),
+        var(--bg);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .app {
+      width: min(760px, 100%);
+      background: rgba(17, 24, 39, 0.88);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      padding: 28px;
+      backdrop-filter: blur(12px);
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3.25rem);
+      letter-spacing: -0.06em;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .status-pill {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      font-weight: 700;
+    }
+
+    .display {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+      background: linear-gradient(180deg, rgba(31,41,55,0.92), rgba(17,24,39,0.92));
+      border-radius: 24px;
+      padding: 26px;
+      border: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 22px;
+    }
+
+    .bpm-line {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    #bpmValue {
+      font-size: clamp(4.5rem, 18vw, 8.5rem);
+      line-height: 0.9;
+      font-weight: 900;
+      letter-spacing: -0.08em;
+    }
+
+    .bpm-label {
+      font-size: 1.4rem;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .beat-indicators {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      min-height: 48px;
+    }
+
+    .beat-dot {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      font-weight: 800;
+      transition: transform 90ms ease, background 90ms ease, color 90ms ease;
+    }
+
+    .beat-dot.active {
+      transform: scale(1.18);
+      background: var(--accent);
+      color: #082f49;
+    }
+
+    .beat-dot.accent.active {
+      background: var(--accent-2);
+      color: #451a03;
+    }
+
+    .visual-pulse {
+      margin: 10px auto 0;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(56, 189, 248, 0.12);
+      border: 2px solid rgba(56, 189, 248, 0.42);
+      color: var(--accent);
+      font-size: 2rem;
+      font-weight: 900;
+      transition: transform 80ms ease, border-color 80ms ease, color 80ms ease;
+    }
+
+    .visual-pulse.hit {
+      transform: scale(1.12);
+      border-color: var(--accent-2);
+      color: var(--accent-2);
+    }
+
+    .controls {
+      display: grid;
+      gap: 18px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+      align-items: end;
+    }
+
+    .card {
+      grid-column: span 6;
+      background: rgba(31, 41, 55, 0.78);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 18px;
+    }
+
+    .card.full { grid-column: 1 / -1; }
+    .card.third { grid-column: span 4; }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    input[type="number"], select {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 13px 14px;
+      background: rgba(15, 23, 42, 0.78);
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      outline: none;
+    }
+
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 16px;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+      color: var(--text);
+      background: rgba(255,255,255,0.09);
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: transform 120ms ease, background 120ms ease;
+    }
+
+    button:hover { transform: translateY(-1px); background: rgba(255,255,255,0.14); }
+    button:active { transform: translateY(1px); }
+
+    #startStop {
+      grid-column: span 2;
+      background: linear-gradient(135deg, var(--accent), #2563eb);
+      color: #06121f;
+      border: 0;
+      font-size: 1.05rem;
+    }
+
+    #startStop.running {
+      background: linear-gradient(135deg, var(--danger), #ef4444);
+      color: #fff;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    footer {
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      text-align: center;
+    }
+
+    @media (max-width: 720px) {
+      .app { padding: 20px; border-radius: 22px; }
+      header { flex-direction: column; }
+      .card, .card.third { grid-column: 1 / -1; }
+      .button-grid { grid-template-columns: repeat(2, 1fr); }
+      #startStop { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="Online metronome application">
+    <header>
+      <div>
+        <h1>Online Metronome</h1>
+        <p class="subtitle">A precise browser metronome with tap tempo, accents, subdivision, and visual beat tracking.</p>
+      </div>
+      <div id="status" class="status-pill">Tap Start to enable sound</div>
+    </header>
+
+    <section class="display" aria-live="polite">
+      <div class="bpm-line">
+        <div id="bpmValue">120</div>
+        <div class="bpm-label">BPM</div>
+      </div>
+      <div id="beatIndicators" class="beat-indicators"></div>
+      <div id="visualPulse" class="visual-pulse">1</div>
+    </section>
+
+    <section class="controls">
+      <div class="row">
+        <div class="card full">
+          <label for="bpmRange">Tempo</label>
+          <input id="bpmRange" type="range" min="30" max="240" value="120" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="card third">
+          <label for="bpmInput">BPM</label>
+          <input id="bpmInput" type="number" min="30" max="240" value="120" />
+        </div>
+        <div class="card third">
+          <label for="beatsPerMeasure">Time Signature</label>
+          <select id="beatsPerMeasure">
+            <option value="2">2 / 4</option>
+            <option value="3">3 / 4</option>
+            <option value="4" selected>4 / 4</option>
+            <option value="5">5 / 4</option>
+            <option value="6">6 / 8</option>
+            <option value="7">7 / 8</option>
+            <option value="9">9 / 8</option>
+            <option value="12">12 / 8</option>
+          </select>
+        </div>
+        <div class="card third">
+          <label for="subdivision">Subdivision</label>
+          <select id="subdivision">
+            <option value="1" selected>Quarter notes</option>
+            <option value="2">Eighth notes</option>
+            <option value="3">Triplets</option>
+            <option value="4">Sixteenth notes</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="card full">
+          <div class="button-grid">
+            <button id="minusFive" type="button">-5</button>
+            <button id="minusOne" type="button">-1</button>
+            <button id="plusOne" type="button">+1</button>
+            <button id="plusFive" type="button">+5</button>
+            <button id="startStop" type="button">Start</button>
+            <button id="tapTempo" type="button">Tap Tempo</button>
+            <button id="mute" type="button" aria-pressed="false">Sound On</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="hint"><strong>iPhone/Safari:</strong> sound must be started by tapping the Start button once. Turn off Silent Mode and raise media volume if needed. Keyboard shortcuts: Space = start/stop, T = tap tempo, Arrow Up/Down = adjust BPM.</p>
+    </section>
+
+    <footer>Works offline after loading. No server required.</footer>
+  </main>
+
+  <script>
+    const bpmRange = document.getElementById('bpmRange');
+    const bpmInput = document.getElementById('bpmInput');
+    const bpmValue = document.getElementById('bpmValue');
+    const beatsPerMeasure = document.getElementById('beatsPerMeasure');
+    const subdivision = document.getElementById('subdivision');
+    const startStop = document.getElementById('startStop');
+    const tapTempo = document.getElementById('tapTempo');
+    const mute = document.getElementById('mute');
+    const status = document.getElementById('status');
+    const beatIndicators = document.getElementById('beatIndicators');
+    const visualPulse = document.getElementById('visualPulse');
+
+    let audioContext;
+    let timerId = null;
+    let nextNoteTime = 0;
+    let currentStep = 0;
+    let isRunning = false;
+    let isMuted = false;
+    let tapTimes = [];
+
+    const scheduleAheadTime = 0.1;
+    const lookahead = 25;
+
+    function getBpm() {
+      return Math.max(30, Math.min(240, Number(bpmInput.value) || 120));
+    }
+
+    function getStepsPerMeasure() {
+      return Number(beatsPerMeasure.value) * Number(subdivision.value);
+    }
+
+    function setBpm(value) {
+      const bpm = Math.max(30, Math.min(240, Math.round(Number(value) || 120)));
+      bpmInput.value = bpm;
+      bpmRange.value = bpm;
+      bpmValue.textContent = bpm;
+    }
+
+    function renderBeatIndicators() {
+      const beats = Number(beatsPerMeasure.value);
+      beatIndicators.innerHTML = '';
+      for (let i = 0; i < beats; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'beat-dot' + (i === 0 ? ' accent' : '');
+        dot.textContent = i + 1;
+        beatIndicators.appendChild(dot);
+      }
+      updateVisuals(0);
+    }
+
+    async function initAudio() {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) {
+        status.textContent = 'Audio not supported';
+        throw new Error('Web Audio API is not supported in this browser.');
+      }
+
+      if (!audioContext) {
+        audioContext = new AudioContextClass();
+      }
+
+      // iPhone/Safari starts Web Audio in a suspended state until a direct user tap.
+      // Awaiting resume() inside the Start button click is important for mobile Safari.
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+
+      // Unlock the iOS audio route with a very short silent sound.
+      // This helps Safari route later scheduled oscillator clicks to the speaker.
+      const silentOsc = audioContext.createOscillator();
+      const silentGain = audioContext.createGain();
+      silentGain.gain.value = 0.00001;
+      silentOsc.connect(silentGain);
+      silentGain.connect(audioContext.destination);
+      silentOsc.start();
+      silentOsc.stop(audioContext.currentTime + 0.02);
+    }
+
+    function playClick(time, isAccent, isSubBeat) {
+      if (isMuted || !audioContext || audioContext.state !== 'running') return;
+
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+
+      // Square-wave clicks are easier to hear on small phone speakers.
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(isAccent ? 1500 : isSubBeat ? 760 : 1050, time);
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.exponentialRampToValueAtTime(isAccent ? 0.95 : 0.65, time + 0.003);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.075);
+
+      osc.start(time);
+      osc.stop(time + 0.085);
+    }
+
+    function updateVisuals(step) {
+      const sub = Number(subdivision.value);
+      const beatIndex = Math.floor(step / sub);
+      const dots = [...document.querySelectorAll('.beat-dot')];
+      dots.forEach((dot, index) => dot.classList.toggle('active', index === beatIndex));
+      visualPulse.textContent = beatIndex + 1;
+      visualPulse.classList.add('hit');
+      setTimeout(() => visualPulse.classList.remove('hit'), 80);
+    }
+
+    function scheduler() {
+      if (!audioContext || audioContext.state !== 'running') return;
+      while (nextNoteTime < audioContext.currentTime + scheduleAheadTime) {
+        const sub = Number(subdivision.value);
+        const isMainBeat = currentStep % sub === 0;
+        const isAccent = currentStep === 0;
+        playClick(nextNoteTime, isAccent, !isMainBeat);
+
+        const visualStep = currentStep;
+        const visualDelay = Math.max(0, (nextNoteTime - audioContext.currentTime) * 1000);
+        setTimeout(() => updateVisuals(visualStep), visualDelay);
+
+        const secondsPerBeat = 60 / getBpm();
+        nextNoteTime += secondsPerBeat / sub;
+        currentStep = (currentStep + 1) % getStepsPerMeasure();
+      }
+    }
+
+    async function start() {
+      try {
+        startStop.disabled = true;
+        status.textContent = 'Enabling audio...';
+        await initAudio();
+
+        isRunning = true;
+        currentStep = 0;
+        nextNoteTime = audioContext.currentTime + 0.08;
+        timerId = setInterval(scheduler, lookahead);
+        scheduler();
+        startStop.textContent = 'Stop';
+        startStop.classList.add('running');
+        status.textContent = 'Playing';
+      } catch (error) {
+        console.error(error);
+        status.textContent = 'Tap Start again';
+        alert('Safari blocked audio. Please tap Start again, turn off Silent Mode, and raise the phone media volume.');
+      } finally {
+        startStop.disabled = false;
+      }
+    }
+
+    function stop() {
+      isRunning = false;
+      clearInterval(timerId);
+      timerId = null;
+      startStop.textContent = 'Start';
+      startStop.classList.remove('running');
+      status.textContent = 'Stopped';
+      document.querySelectorAll('.beat-dot').forEach(dot => dot.classList.remove('active'));
+    }
+
+    function toggleStartStop() {
+      if (isRunning) {
+        stop();
+      } else {
+        start();
+      }
+    }
+
+    function changeBpm(delta) {
+      setBpm(getBpm() + delta);
+    }
+
+    function handleTapTempo() {
+      const now = performance.now();
+      tapTimes = tapTimes.filter(t => now - t < 2500);
+      tapTimes.push(now);
+
+      if (tapTimes.length >= 2) {
+        const intervals = [];
+        for (let i = 1; i < tapTimes.length; i++) intervals.push(tapTimes[i] - tapTimes[i - 1]);
+        const avg = intervals.reduce((sum, value) => sum + value, 0) / intervals.length;
+        setBpm(60000 / avg);
+      }
+    }
+
+    bpmRange.addEventListener('input', event => setBpm(event.target.value));
+    bpmInput.addEventListener('input', event => setBpm(event.target.value));
+    beatsPerMeasure.addEventListener('change', () => {
+      currentStep = 0;
+      renderBeatIndicators();
+    });
+    subdivision.addEventListener('change', () => { currentStep = 0; });
+    startStop.addEventListener('click', toggleStartStop);
+    tapTempo.addEventListener('click', handleTapTempo);
+    mute.addEventListener('click', () => {
+      isMuted = !isMuted;
+      mute.textContent = isMuted ? 'Sound Off' : 'Sound On';
+      mute.setAttribute('aria-pressed', String(isMuted));
+    });
+    document.getElementById('minusFive').addEventListener('click', () => changeBpm(-5));
+    document.getElementById('minusOne').addEventListener('click', () => changeBpm(-1));
+    document.getElementById('plusOne').addEventListener('click', () => changeBpm(1));
+    document.getElementById('plusFive').addEventListener('click', () => changeBpm(5));
+
+    document.addEventListener('keydown', event => {
+      if (event.target.matches('input, select, button')) return;
+      if (event.code === 'Space') {
+        event.preventDefault();
+        toggleStartStop();
+      }
+      if (event.key.toLowerCase() === 't') handleTapTempo();
+      if (event.key === 'ArrowUp') changeBpm(1);
+      if (event.key === 'ArrowDown') changeBpm(-1);
+    });
+
+    renderBeatIndicators();
+    setBpm(120);
+  </script>
+</body>
+</html>
